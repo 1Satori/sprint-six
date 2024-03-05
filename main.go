@@ -93,7 +93,7 @@ func Del(w http.ResponseWriter, r *http.Request) {
 	taskID := chi.URLParam(r, "id")
 
 	if _, ok := tasks[taskID]; !ok {
-		http.Error(w, "Task not found", http.StatusNotFound)
+		http.Error(w, "Task not found", http.StatusBadRequest)
 		return
 	}
 
