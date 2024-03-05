@@ -55,7 +55,7 @@ func GetId(w http.ResponseWriter, r *http.Request) {
 
 	data, ok := tasks[id]
 	if !ok {
-		http.Error(w, "Id not found", http.StatusNoContent)
+		http.Error(w, "Id not found", http.StatusBadRequest)
 		return
 	}
 	resp, err := json.Marshal(data)
