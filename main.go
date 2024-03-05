@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -38,60 +39,79 @@ var tasks = map[string]Task{
 	},
 }
 
-func GetHandler(res http.ResponseWriter, req *http.Request) {
+func Get(w http.ResponseWriter, r *http.Request) {
 	resp, err := json.Marshal(tasks)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
-	res.Write(resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
 }
 
-func PostHandler(res http.ResponseWriter, req *http.Request) {
-	resp, err := json.Marshal(tasks)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+func GetId(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	data, ok := tasks[id]
+	if !ok {
+		http.Error(w, "Id not found", http.StatusBadRequest)
 		return
 	}
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
-	res.Write(resp)
+	resp, err := json.Marshal(data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
 }
 
-func GetIdHandler(res http.ResponseWriter, req *http.Request) {
-	resp, err := json.Marshal(tasks)
+func Post(w http.ResponseWriter, r *http.Request) {
+	var task Task
+	var buf bytes.Buffer
+
+	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
-	res.Write(resp)
+
+	if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	tasks[task.ID] = task
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 }
 
-func DelIdHandler(res http.ResponseWriter, req *http.Request) {
-	resp, err := json.Marshal(tasks)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+func Del(w http.ResponseWriter, r *http.Request) {
+	taskID := chi.URLParam(r, "id")
+
+	if _, ok := tasks[taskID]; !ok {
+		http.Error(w, "Task not found", http.StatusBadRequest)
 		return
 	}
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
-	res.Write(resp)
+
+	delete(tasks, taskID)
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func main() {
 	r := chi.NewRouter()
 
-	r.Get("/tasks", GetHandler)
-	r.Post("/tasks", PostHandler)
-	r.Get("/tasks/{id}", GetIdHandler)
-	r.Delete("/tasks/{id}", DelIdHandler)
+	r.Get("/tasks", Get)
+	r.Post("/tasks", Post)
+	r.Get("/tasks/{id}", GetId)
+	r.Delete("/tasks/{id}", Del)
 
 	if err := http.ListenAndServe(":8080", r); err != nil {
-		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())
+		fmt.Printf("Error with starting server: %s", err.Error())
 		return
 	}
 }
